@@ -135,3 +135,23 @@ def process_directory(root_folder):
 # Usage
 process_directory('path/to/folder')  # Change to your folder path
 ```
+
+
+
+```
+import os
+
+def remove_wash_trade_files(root_folder):
+    for foldername, subfolders, filenames in os.walk(root_folder):
+        for filename in filenames:
+            if filename.lower().startswith('wash_trade'):
+                filepath = os.path.join(foldername, filename)
+                try:
+                    os.remove(filepath)
+                    print(f"Deleted: {filepath}")
+                except Exception as e:
+                    print(f"Error deleting {filepath}: {e}")
+
+# Usage
+remove_wash_trade_files('path/to/folder')  # Replace with your folder path
+```
