@@ -83,3 +83,55 @@ else:
 wash_trades.to_csv('wash_trades_detected.csv', index=False)
 
 ```
+
+
+
+```
+import pandas as pd
+import os
+
+def detect_wash_trades(csv_path):
+    df = pd.read_csv(csv_path, parse_dates=['trade time'])
+    required_cols = ['trade time', 'Symbol', 'Quantity', 'Account', 'Price', 'Side', 'Execution ID']
+    if not all(col in df.columns for col in required_cols):
+        print(f"File {csv_path} skipped: missing required columns.")
+        return None
+
+    # Filter out rows with blank Execution ID
+    df = df[df['Execution ID'].notna() & (df['Execution ID'].astype(str).str.strip() != '')]
+
+    time_window = pd.Timedelta('1 minute')
+    buys = df[df['Side'].str.lower() == 'buy']
+    sells = df[df['Side'].str.lower() == 'sell']
+
+    merged = pd.merge(
+        buys,
+        sells,
+        on=['Account', 'Symbol', 'Price'],
+        suffixes=('_buy', '_sell')
+    )
+
+    wash_trades = merged[
+        (abs(merged['trade time_buy'] - merged['trade time_sell']) <= time_window) &
+        (merged['Quantity_buy'] == merged['Quantity_sell'])
+    ]
+
+    return wash_trades
+
+def process_directory(root_folder):
+    for foldername, subfolders, filenames in os.walk(root_folder):
+        for filename in filenames:
+            if filename.lower().endswith('.csv'):
+                filepath = os.path.join(foldername, filename)
+                print(f"Processing {filepath} ...")
+                wash_trades = detect_wash_trades(filepath)
+                if wash_trades is not None and not wash_trades.empty:
+                    wash_filename = os.path.join(foldername, f'wash_trade_{filename}')
+                    wash_trades.to_csv(wash_filename, index=False)
+                    print(f"Wash trades saved to {wash_filename}.")
+                else:
+                    print("No wash trades detected or file skipped.")
+
+# Usage
+process_directory('path/to/folder')  # Change to your folder path
+```
