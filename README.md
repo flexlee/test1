@@ -45,8 +45,11 @@ import pandas as pd
 df = pd.read_csv('trade_blotter.csv', parse_dates=['trade time'])
 
 # Ensure columns are correct
-required_cols = ['trade time', 'Symbol', 'Quantity', 'Account', 'Price', 'Side']
+required_cols = ['trade time', 'Symbol', 'Quantity', 'Account', 'Price', 'Side', 'Execution ID']
 assert all(col in df.columns for col in required_cols), "CSV missing required columns."
+
+# Filter out rows with blank Execution ID
+df = df[df['Execution ID'].notna() & (df['Execution ID'].astype(str).str.strip() != '')]
 
 # Consider trades within 1 minute as possible wash trades
 time_window = pd.Timedelta('1 minute')
@@ -55,7 +58,7 @@ time_window = pd.Timedelta('1 minute')
 buys = df[df['Side'].str.lower() == 'buy']
 sells = df[df['Side'].str.lower() == 'sell']
 
-# Merge buys and sells on Account, Symbol, Price, and within time window
+# Merge buys and sells on Account, Symbol, Price, within time window
 merged = pd.merge(
     buys,
     sells,
@@ -63,19 +66,20 @@ merged = pd.merge(
     suffixes=('_buy', '_sell')
 )
 
-# Filter pairs within the time window and match quantity (optional)
+# Filter pairs within the time window and match quantity
 wash_trades = merged[
     (abs(merged['trade time_buy'] - merged['trade time_sell']) <= time_window) &
     (merged['Quantity_buy'] == merged['Quantity_sell'])
 ]
 
-# Output wash trades or save to file
+# Show results or save to file
 if not wash_trades.empty:
     print("Possible wash trades found:")
-    print(wash_trades[['trade time_buy', 'trade time_sell', 'Symbol', 'Account', 'Quantity_buy', 'Price']])
+    print(wash_trades[['trade time_buy', 'trade time_sell', 'Symbol', 'Account', 'Quantity_buy', 'Price', 'Execution ID_buy', 'Execution ID_sell']])
 else:
     print("No wash trades detected.")
 
 # Optionally, save to CSV
 wash_trades.to_csv('wash_trades_detected.csv', index=False)
+
 ```
